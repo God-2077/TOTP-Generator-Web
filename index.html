@@ -19,12 +19,89 @@
     .text-center{text-align:center!important}
     .center{display:block!important;margin-right:auto!important;margin-left:auto!important}
     .saved-items-container { margin-top: 24px; }
-    .saved-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 8px; cursor: pointer; }
-    .saved-item:hover { background-color: #f5f5f5; }
-    .saved-item-name { font-weight: bold; flex-grow: 1; }
-    .saved-item-actions { display: flex; gap: 8px; }
-    .saved-item-totp { font-family: monospace; margin-left: 16px; }
-    .divider { margin: 16px 0; border-bottom: 1px solid #e0e0e0; }
+    
+    .saved-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white
+    }
+    
+    .saved-item:hover {
+      background-color: #f5f5f5;
+      border-color: #bbdefb;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05)
+    }
+    
+    .saved-item-name {
+      font-weight: 600;
+      flex-grow: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 18px;
+      color: #333
+    }
+    
+    .saved-item-totp-area {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      width: 88px;
+      padding: 10px 12px;
+      margin-left: 16px;
+      border-radius: 8px;
+      background: #f8fdff;
+      border: 1px solid #d0eaff;
+      box-shadow: 0 1px 3px rgba(30, 136, 229, 0.08);
+      transition: all 0.2s
+    }
+    
+    .saved-item-totp {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1976d2;
+      margin-bottom: 6px;
+      text-align: center;
+      text-decoration: none;
+      letter-spacing: 2px
+    }
+    
+    .saved-item-totp-copyable:hover {
+      color: #0d47a1
+    }
+    
+    .saved-item-actions mdui-button-icon {
+      color: #757575;
+      transition: all 0.2s
+    }
+    
+    .saved-item-actions mdui-button-icon:hover {
+      color: #d32f2f;
+      background: rgba(211, 47, 47, 0.08)
+    }
+    
+    .divider {
+      margin: 16px 0;
+      border-bottom: 1px solid #e0e0e0
+    }
+    
+    .no-keys-hint {
+        text-align: center;
+        padding: 32px 20px;
+        color: rgba(0, 0, 0, 0.54);
+        font-size: 16px;
+        background: #fafafa;
+        border-radius: 8px;
+        border: 1px dashed #e0e0e0;
+      }
 
   </style>
   <!-- MDUI CSS -->
@@ -53,8 +130,8 @@
 
   <mdui-text-field label="输入密钥" icon="vpn_key" id="key" oninput="generateTOTP()" autofocus></mdui-text-field>
   <mdui-text-field label="密钥名称" icon="label" id="keyName" style="margin-top: 8px;"></mdui-text-field>
-  <mdui-button variant="outlined" style="margin-top: 16px;" onclick="saveKey()">
-    <mdui-button-icon><i class="material-icons">save</i></mdui-button-icon>
+  
+  <mdui-button variant="outlined" style="margin-top: 16px; width: 100%; margin-top: 8px; border-radius: 4px;" onclick="saveKey()">
     保存密钥
   </mdui-button>
 
@@ -75,7 +152,6 @@
     <div id="savedKeysList"></div>
   </div>
 
-<!-- 复制 -->
 <script>
 function copyKey() {
   var totpElement = document.getElementById('totp');
@@ -86,7 +162,7 @@ function copyKey() {
     window.getSelection().addRange(range);
     document.execCommand('copy');
     window.getSelection().removeAllRanges();
-    mdui.snackbar({message: '已复制', position: 'top',});
+    mdui.snackbar({message: '已复制', position: 'top'});
   }
 }
 
@@ -96,7 +172,7 @@ function saveKey() {
   const name = document.getElementById('keyName').value.trim() || '未命名密钥';
   
   if (!key) {
-    mdui.snackbar({message: '请输入密钥', position: 'top',});
+    mdui.snackbar({message: '请输入密钥', position: 'top'});
     return;
   }
   
@@ -113,19 +189,22 @@ function saveKey() {
   
   // 保存到localStorage
   localStorage.setItem('totpKeys', JSON.stringify(savedKeys));
-  mdui.snackbar({message: `"${name}" 已保存`, position: 'top',});
+  mdui.snackbar({message: `"${name}" 已保存`, position: 'top'});
   
   // 刷新列表
   renderSavedKeys();
 }
 
 // 删除保存的密钥
-function deleteKey(name) {
+function deleteKey(name, event) {
+  // 阻止事件冒泡，避免触发父元素的事件
+  event.stopPropagation();
+  
   let savedKeys = JSON.parse(localStorage.getItem('totpKeys') || '[]');
   savedKeys = savedKeys.filter(k => k.name !== name);
   localStorage.setItem('totpKeys', JSON.stringify(savedKeys));
   renderSavedKeys();
-  mdui.snackbar({message: `"${name}" 已删除`, position: 'top',});
+  mdui.snackbar({message: `"${name}" 已删除`, position: 'top'});
 }
 
 // 使用保存的密钥
@@ -135,151 +214,206 @@ function useSavedKey(key, name) {
   generateTOTP();
 }
 
+// 复制条目TOTP
+function copyItemTOTP(totpElement, event) {
+  // 阻止事件冒泡，避免触发父元素的事件
+  event.stopPropagation();
+  
+  const text = totpElement.textContent;
+  const temp = document.createElement('textarea');
+  temp.value = text;
+  document.body.appendChild(temp);
+  temp.select();
+  document.execCommand('copy');
+  document.body.removeChild(temp);
+  
+  
+  mdui.snackbar({message: 'TOTP已复制', position: 'top'});
+}
+
+// 计算单个密钥的TOTP
+function calculateItemTOTP(key) {
+  key = key.toUpperCase().replace(/\s/g, "");
+  const decodedKey = base32Decode(key);
+  
+  const timeStep = 30;
+  const currTime = Math.floor(Date.now() / 1000);
+  const counter = Math.floor(currTime / timeStep);
+  
+  const message = counter.toString(16).padStart(16, '0');
+  const hmacHash = hmacSHA1(decodedKey, hexToBytes(message));
+  const offset = hmacHash[19] & 0xf;
+  const otp =
+    ((hmacHash[offset] & 0x7f) << 24) |
+    (hmacHash[offset + 1] << 16) |
+    (hmacHash[offset + 2] << 8) |
+    hmacHash[offset + 3];
+  
+  return {
+    otp: (otp % 1000000).toString().padStart(6, '0'),
+    remaining: timeStep - (currTime % timeStep),
+    progress: ((timeStep - (currTime % timeStep)) / timeStep) * 100
+  };
+}
+
 // 渲染已保存的密钥列表
 function renderSavedKeys() {
   const savedKeys = JSON.parse(localStorage.getItem('totpKeys') || '[]');
   const container = document.getElementById('savedKeysList');
   
   if (savedKeys.length === 0) {
-    container.innerHTML = '<p>没有保存的密钥</p>';
+    container.innerHTML = '<div class="no-keys-hint">没有保存的密钥</div>';
     return;
   }
   
-  container.innerHTML = savedKeys.map(item => `
-    <div class="saved-item">
+  container.innerHTML = savedKeys.map(item => {
+    const totpData = calculateItemTOTP(item.key);
+    return `
+    <div class="saved-item" onclick="useSavedKey('${item.key.replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">
       <div class="saved-item-name">${item.name}</div>
+      
+      <div class="saved-item-totp-area">
+        <div class="saved-item-totp saved-item-totp-copyable" onclick="copyItemTOTP(this, event)">
+          ${totpData.otp}
+        </div>
+          <mdui-linear-progress class="item-progress-bar" value="${totpData.progress}" max="100"></mdui-linear-progress>
+      </div>
+      
       <div class="saved-item-actions">
-        <mdui-button-icon onclick="useSavedKey('${item.key}', '${item.name}')"><i class="material-icons">send</i></mdui-button-icon>
-        <mdui-button-icon onclick="deleteKey('${item.name}')"><i class="material-icons">delete</i></mdui-button-icon>
+        <mdui-button-icon onclick="deleteKey('${item.name}', event)"><i class="material-icons">delete</i></mdui-button-icon>
       </div>
     </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 // 页面加载时渲染保存的密钥
-document.addEventListener('DOMContentLoaded', renderSavedKeys);
-</script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderSavedKeys();
   
-  <script>
-    var timerId;
+  // 设置定期更新保存的密钥列表
+  setInterval(renderSavedKeys, 1000);
+});
 
-    function generateTOTP() {
-      clearTimeout(timerId); // 清除之前的定时器
+var timerId;
 
-      var key = document.getElementById('key').value;
+function generateTOTP() {
+  clearTimeout(timerId); // 清除之前的定时器
 
-      // 将所有小写字母转换为大写字母并去掉空格
-      key = key.toUpperCase().replace(/\s/g, "");
-      // 将Base32编码的密钥解码为二进制
-      key = base32Decode(key);
+  var key = document.getElementById('key').value;
 
-      // 定义哈希算法
-      var digestAlgorithm = 'SHA-1';
+  // 将所有小写字母转换为大写字母并去掉空格
+  key = key.toUpperCase().replace(/\s/g, "");
+  // 将Base32编码的密钥解码为二进制
+  key = base32Decode(key);
 
-      // 获取当前时间戳
-      var timeStep = 30;  // 默认时间步长为30秒
-      var currTime = Math.floor(Date.now() / 1000);
+  // 定义哈希算法
+  var digestAlgorithm = 'SHA-1';
 
-      // 计算到下一个30秒的剩余时间并减去1秒以确保刚好取到当前的30秒
-      var remainingTime = timeStep - (currTime % timeStep) - 1;
-      var remainingTimems = timeStep - (Date.now() / 1000 % timeStep) - 1;
+  // 获取当前时间戳
+  var timeStep = 30;  // 默认时间步长为30秒
+  var currTime = Math.floor(Date.now() / 1000);
 
-      // 计算基于时间的单次密码
-      var message = Math.floor(currTime / timeStep).toString(16);
-      message = message.padStart(16, '0');
-      var hmacHash = hmacSHA1(key, hexToBytes(message));
-      var offset = hmacHash[19] & 0xf;
-      var otp =
-        ((hmacHash[offset] & 0x7f) << 24) |
-        (hmacHash[offset + 1] << 16) |
-        (hmacHash[offset + 2] << 8) |
-        hmacHash[offset + 3];
-      otp = (otp % 1000000).toString().padStart(6, '0');
+  // 计算到下一个30秒的剩余时间并减去1秒以确保刚好取到当前的30秒
+  var remainingTime = timeStep - (currTime % timeStep) - 1;
+  var remainingTimems = timeStep - (Date.now() / 1000 % timeStep) - 1;
 
-      // 更新TOTP密码和剩余时间的显示
-      document.getElementById('totp').textContent = otp;
-      document.getElementById('remaining-time').textContent = '剩余时间: ' + remainingTime + ' 秒';
+  // 计算基于时间的单次密码
+  var message = Math.floor(currTime / timeStep).toString(16);
+  message = message.padStart(16, '0');
+  var hmacHash = hmacSHA1(key, hexToBytes(message));
+  var offset = hmacHash[19] & 0xf;
+  var otp =
+    ((hmacHash[offset] & 0x7f) << 24) |
+    (hmacHash[offset + 1] << 16) |
+    (hmacHash[offset + 2] << 8) |
+    hmacHash[offset + 3];
+  otp = (otp % 1000000).toString().padStart(6, '0');
 
-      // 更新进度条
-      var progress = document.getElementById('progress');
-      var progressWidth = (remainingTimems / timeStep) * 100;
-      progress.style.display = 'block';
-      progress.value = progressWidth;
+  // 更新TOTP密码和剩余时间的显示
+  document.getElementById('totp').textContent = otp;
+  document.getElementById('remaining-time').textContent = '剩余时间: ' + remainingTime + ' 秒';
 
-      // 每0.1秒更新一次
-      timerId = setTimeout(generateTOTP, 100);
-    }
+  // 更新进度条
+  var progress = document.getElementById('progress');
+  var progressWidth = (remainingTimems / timeStep) * 100;
+  progress.style.display = 'block';
+  progress.value = progressWidth;
 
-    // Base32解码
-    function base32Decode(input) {
-      var base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-      var base32lookup = {};
-      for (var i = 0; i < base32chars.length; i++) {
-        base32lookup[base32chars.charAt(i)] = i;
-      }
-      
-      input = input.replace(/=+$/, '');
-      var bits = '';
-      var output = [];
-      for (var i = 0; i < input.length; i++) {
-        var char = input.charAt(i).toUpperCase();
-        var val = base32lookup[char];
-        bits += ('00000' + val.toString(2)).slice(-5);
-      }
-      while (bits.length >= 8) {
-        output.push(parseInt(bits.substring(0, 8), 2));
-        bits = bits.substring(8);
-      }
-      
-      return new Uint8Array(output);
-    }
+  // 每0.1秒更新一次
+  timerId = setTimeout(generateTOTP, 100);
+}
 
-    // HMAC-SHA1哈希
-    function hmacSHA1(key, message) {
-      var keyBytes = new Uint8Array(key);
-      var messageBytes = new Uint8Array(message);
-      var hmacKey = (keyBytes.length > 64) ? sha1(keyBytes) : keyBytes;
-      if (hmacKey.length < 64) {
-        var padding = new Uint8Array(64 - hmacKey.length);
-        hmacKey = concatenateUint8Arrays(hmacKey, padding);
-      }
+// Base32解码
+function base32Decode(input) {
+  var base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  var base32lookup = {};
+  for (var i = 0; i < base32chars.length; i++) {
+    base32lookup[base32chars.charAt(i)] = i;
+  }
+  
+  input = input.replace(/=+$/, '');
+  var bits = '';
+  var output = [];
+  for (var i = 0; i < input.length; i++) {
+    var char = input.charAt(i).toUpperCase();
+    var val = base32lookup[char];
+    bits += ('00000' + val.toString(2)).slice(-5);
+  }
+  while (bits.length >= 8) {
+    output.push(parseInt(bits.substring(0, 8), 2));
+    bits = bits.substring(8);
+  }
+  
+  return new Uint8Array(output);
+}
 
-      var innerPad = new Uint8Array(64);
-      var outerPad = new Uint8Array(64);
-      for (var i = 0; i < 64; i++) {
-        innerPad[i] = hmacKey[i] ^ 0x36;
-        outerPad[i] = hmacKey[i] ^ 0x5c;
-      }
+// HMAC-SHA1哈希
+function hmacSHA1(key, message) {
+  var keyBytes = new Uint8Array(key);
+  var messageBytes = new Uint8Array(message);
+  var hmacKey = (keyBytes.length > 64) ? sha1(keyBytes) : keyBytes;
+  if (hmacKey.length < 64) {
+    var padding = new Uint8Array(64 - hmacKey.length);
+    hmacKey = concatenateUint8Arrays(hmacKey, padding);
+  }
 
-      var innerHash = sha1(concatenateUint8Arrays(innerPad, messageBytes));
-      var outerHash = sha1(concatenateUint8Arrays(outerPad, innerHash));
+  var innerPad = new Uint8Array(64);
+  var outerPad = new Uint8Array(64);
+  for (var i = 0; i < 64; i++) {
+    innerPad[i] = hmacKey[i] ^ 0x36;
+    outerPad[i] = hmacKey[i] ^ 0x5c;
+  }
 
-      return outerHash;
-    }
+  var innerHash = sha1(concatenateUint8Arrays(innerPad, messageBytes));
+  var outerHash = sha1(concatenateUint8Arrays(outerPad, innerHash));
 
-    // SHA1哈希
-    function sha1(message) {
-      var sha1Hash = CryptoJS.SHA1(CryptoJS.lib.WordArray.create(message));
-      return hexToBytes(sha1Hash.toString());
-    }
+  return outerHash;
+}
 
-    // 将十六进制字符串转换为字节数组
-    function hexToBytes(hex) {
-      var bytes = [];
-      for (var i = 0; i < hex.length; i += 2) {
-        bytes.push(parseInt(hex.substr(i, 2), 16));
-      }
-      return bytes;
-    }
+// SHA1哈希
+function sha1(message) {
+  var sha1Hash = CryptoJS.SHA1(CryptoJS.lib.WordArray.create(message));
+  return hexToBytes(sha1Hash.toString());
+}
 
-    // 合并Uint8Array
-    function concatenateUint8Arrays(a, b) {
-      var result = new Uint8Array(a.length + b.length);
-      result.set(a);
-      result.set(b, a.length);
-      return result;
-    }
-  </script>
+// 将十六进制字符串转换为字节数组
+function hexToBytes(hex) {
+  var bytes = [];
+  for (var i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.substr(i, 2), 16));
+  }
+  return bytes;
+}
+
+// 合并Uint8Array
+function concatenateUint8Arrays(a, b) {
+  var result = new Uint8Array(a.length + b.length);
+  result.set(a);
+  result.set(b, a.length);
+  return result;
+}
+</script>
 
 </body>
 </html>
