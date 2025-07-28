@@ -168,7 +168,10 @@
     <div class="card-content">
       <div class="card-primary-title">TOTP</div>
       <div class="card-primary-subtitle">点击此卡片可复制TOTP</div>
-    <p id="totp" class="typo-display-4 text-center"></p>
+    <p id="totp" class="typo-display-4 text-center">
+        <!-- 修复输入密钥时，界面布局出现跳跃式变化 -->
+        <span style="visibility: hidden">占位符</span>
+    </p>
     <p id="remaining-time"></p>
     <mdui-linear-progress id="progress" value="0" max="100"></mdui-linear-progress>
   </div>
