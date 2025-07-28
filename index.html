@@ -15,7 +15,7 @@
     .card-content{position:relative;padding:16px;font-size:14px;line-height:24px}
     .card-primary-title{display:block;font-size:24px;line-height:36px;opacity:.87}
     .card-primary-subtitle{display:block;font-size:14px;line-height:24px;opacity:.54}
-    .typo-display-4,.typo-display-4-opacity{font-weight:300;font-size:112px;letter-spacing:-.04em}.typo-display-4-opacity{opacity:.54}
+    /*.typo-display-4,.typo-display-4-opacity{font-weight:300;font-size:112px;letter-spacing:-.04em}.typo-display-4-opacity{opacity:.54}*/
     .text-center{text-align:center!important}
     .center{display:block!important;margin-right:auto!important;margin-left:auto!important}
     .saved-items-container { margin-top: 24px; }
@@ -102,6 +102,33 @@
         border-radius: 8px;
         border: 1px dashed #e0e0e0;
       }
+      
+     /*小屏设备 TOTP 溢出解决方案*/
+    .typo-display-4, .typo-display-4-opacity {
+      font-weight: 300;
+      font-size: 112px;
+      letter-spacing: -0.04em;
+    }
+    
+    /* 添加响应式字体 */
+    @media (max-width: 960px) {
+      .typo-display-4, .typo-display-4-opacity {
+        font-size: 90px;
+      }
+    }
+    
+    @media (max-width: 600px) {
+      .typo-display-4, .typo-display-4-opacity {
+        font-size: 70px;
+        letter-spacing: 0;
+      }
+    }
+    
+    @media (max-width: 400px) {
+      .typo-display-4, .typo-display-4-opacity {
+        font-size: 56px;
+      }
+    }
 
   </style>
   <!-- MDUI CSS -->
