@@ -344,14 +344,6 @@ function renderSavedKeys() {
   }).join('');
 }
 
-// 页面加载时渲染保存的密钥
-document.addEventListener('DOMContentLoaded', () => {
-  renderSavedKeys();
-  
-  // 设置定期更新保存的密钥列表
-  setInterval(renderSavedKeys, 1000);
-});
-
 var timerId;
 
 function generateTOTP() {
@@ -487,6 +479,31 @@ function concatenateUint8Arrays(a, b) {
   result.set(b, a.length);
   return result;
 }
+
+
+function initTOTPKeyFeatures() {
+    
+    // 自动填入账户名
+    let lastresult = '';   document.getElementById('key').addEventListener('input', function(event) {
+      const key = event.target;
+      const name = document.getElementById('keyName');
+      const result = key.value.match(/otpauth:\/\/totp\/([^?]+)/);
+      // if (result && (lastresult == result[1].substring(0, result[1].length - 1) || name.value == '')) {
+      if (result) {
+        name.value = result[1];
+        lastresult = result[1];
+      }
+    });
+    
+  
+  renderSavedKeys();
+  setInterval(renderSavedKeys, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTOTPKeyFeatures()
+});
+
 </script>
 
 </body>
