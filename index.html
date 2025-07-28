@@ -183,6 +183,19 @@
   </div>
 
 <script>
+function extractOTPSecret(str) {
+   if (!str.startsWith('otpauth://totp/')) {
+     return str;
+   }
+   const queryStartIndex = str.indexOf('?');
+   if (queryStartIndex === -1) {
+     return null;
+   }
+   const queryString = str.slice(queryStartIndex + 1);
+   const params = new URLSearchParams(queryString);
+   const secret = params.get('secret');
+   return secret ? decodeURIComponent(secret) : null;
+}
 function copyKey() {
   var totpElement = document.getElementById('totp');
   if (totpElement) {
@@ -262,8 +275,9 @@ function copyItemTOTP(totpElement, event) {
 }
 
 // 计算单个密钥的TOTP
-function calculateItemTOTP(key) {
-  key = key.toUpperCase().replace(/\s/g, "");
+function calculateItemTOTP(key) {;
+  key = extractOTPSecret(key.replace(/\s/g, ""));
+  key = key.toUpperCase();
   const decodedKey = base32Decode(key);
   
   const timeStep = 30;
@@ -331,9 +345,10 @@ function generateTOTP() {
   clearTimeout(timerId); // 清除之前的定时器
 
   var key = document.getElementById('key').value;
+  key = extractOTPSecret(key.replace(/\s/g, ""));
 
   // 将所有小写字母转换为大写字母并去掉空格
-  key = key.toUpperCase().replace(/\s/g, "");
+  key = key.toUpperCase();
   // 将Base32编码的密钥解码为二进制
   key = base32Decode(key);
 
