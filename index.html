@@ -311,7 +311,20 @@ function renderSavedKeys() {
   }
   
   container.innerHTML = savedKeys.map(item => {
-    const totpData = calculateItemTOTP(item.key);
+    let totpData
+    try {
+        totpData = calculateItemTOTP(item.key);
+    } catch (error) {
+        if (error instanceof TypeError) {
+            totpData = {
+                otp: "Error",
+                remaining: 0,
+                progress: 0
+            }
+        } else {
+            console.error(error)
+        }
+    }
     return `
     <div class="saved-item" onclick="useSavedKey('${item.key.replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">
       <div class="saved-item-name">${item.name}</div>
@@ -350,7 +363,23 @@ function generateTOTP() {
   // 将所有小写字母转换为大写字母并去掉空格
   key = key.toUpperCase();
   // 将Base32编码的密钥解码为二进制
-  key = base32Decode(key);
+  try {
+      key = base32Decode(key);
+  } catch (error) {
+      if (error instanceof TypeError) {
+          otp = "Error"
+          document.getElementById('totp').textContent = otp;
+          document.getElementById('remaining-time').textContent = '剩余时间: ' + undefined + ' 秒';
+          var progress = document.getElementById('progress');
+          var progressWidth = 0;
+          progress.style.display = 'block';
+          progress.value = progressWidth;
+          return
+      } else {
+        console.error(error)
+        return
+      }
+  }
 
   // 定义哈希算法
   var digestAlgorithm = 'SHA-1';
