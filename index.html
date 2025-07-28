@@ -18,11 +18,17 @@
     .typo-display-4,.typo-display-4-opacity{font-weight:300;font-size:112px;letter-spacing:-.04em}.typo-display-4-opacity{opacity:.54}
     .text-center{text-align:center!important}
     .center{display:block!important;margin-right:auto!important;margin-left:auto!important}
+    .saved-items-container { margin-top: 24px; }
+    .saved-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 8px; cursor: pointer; }
+    .saved-item:hover { background-color: #f5f5f5; }
+    .saved-item-name { font-weight: bold; flex-grow: 1; }
+    .saved-item-actions { display: flex; gap: 8px; }
+    .saved-item-totp { font-family: monospace; margin-left: 16px; }
+    .divider { margin: 16px 0; border-bottom: 1px solid #e0e0e0; }
 
   </style>
   <!-- MDUI CSS -->
   <link rel="stylesheet" href="https://unpkg.com/mdui@2.0.3/mdui.css">
-  <!-- <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"> -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="./font.css">
   <title>TOTP 生成器</title>
@@ -30,7 +36,7 @@
   <!-- MDUI JavaScript -->
   <script src="https://unpkg.com/mdui@2.0.3/mdui.global.js"></script>
 </head>
-<body class="container"></body>
+<body class="container">
   <mdui-top-app-bar>
     <mdui-top-app-bar-title>TOTP 生成器</mdui-top-app-bar-title>
     <div style="flex-grow: 1"></div>
@@ -46,9 +52,14 @@
   </mdui-top-app-bar>
 
   <mdui-text-field label="输入密钥" icon="vpn_key" id="key" oninput="generateTOTP()" autofocus></mdui-text-field>
+  <mdui-text-field label="密钥名称" icon="label" id="keyName" style="margin-top: 8px;"></mdui-text-field>
+  <mdui-button variant="outlined" style="margin-top: 16px;" onclick="saveKey()">
+    <mdui-button-icon><i class="material-icons">save</i></mdui-button-icon>
+    保存密钥
+  </mdui-button>
 
-<p></p>
-
+  <div class="divider"></div>
+  
   <mdui-card clickable class="center" onclick="copyKey()">
     <div class="card-content">
       <div class="card-primary-title">TOTP</div>
@@ -58,6 +69,11 @@
     <mdui-linear-progress id="progress" value="0" max="100"></mdui-linear-progress>
   </div>
   </mdui-card>
+
+  <div class="saved-items-container">
+    <h3>已保存的密钥</h3>
+    <div id="savedKeysList"></div>
+  </div>
 
 <!-- 复制 -->
 <script>
@@ -74,6 +90,74 @@ function copyKey() {
   }
 }
 
+// 保存密钥到localStorage
+function saveKey() {
+  const key = document.getElementById('key').value.trim();
+  const name = document.getElementById('keyName').value.trim() || '未命名密钥';
+  
+  if (!key) {
+    mdui.snackbar({message: '请输入密钥', position: 'top',});
+    return;
+  }
+  
+  // 获取已保存的密钥
+  let savedKeys = JSON.parse(localStorage.getItem('totpKeys') || '[]');
+  
+  // 检查是否已存在同名密钥
+  const existingIndex = savedKeys.findIndex(k => k.name === name);
+  if (existingIndex !== -1) {
+    savedKeys[existingIndex].key = key;
+  } else {
+    savedKeys.push({ name, key });
+  }
+  
+  // 保存到localStorage
+  localStorage.setItem('totpKeys', JSON.stringify(savedKeys));
+  mdui.snackbar({message: `"${name}" 已保存`, position: 'top',});
+  
+  // 刷新列表
+  renderSavedKeys();
+}
+
+// 删除保存的密钥
+function deleteKey(name) {
+  let savedKeys = JSON.parse(localStorage.getItem('totpKeys') || '[]');
+  savedKeys = savedKeys.filter(k => k.name !== name);
+  localStorage.setItem('totpKeys', JSON.stringify(savedKeys));
+  renderSavedKeys();
+  mdui.snackbar({message: `"${name}" 已删除`, position: 'top',});
+}
+
+// 使用保存的密钥
+function useSavedKey(key, name) {
+  document.getElementById('key').value = key;
+  document.getElementById('keyName').value = name;
+  generateTOTP();
+}
+
+// 渲染已保存的密钥列表
+function renderSavedKeys() {
+  const savedKeys = JSON.parse(localStorage.getItem('totpKeys') || '[]');
+  const container = document.getElementById('savedKeysList');
+  
+  if (savedKeys.length === 0) {
+    container.innerHTML = '<p>没有保存的密钥</p>';
+    return;
+  }
+  
+  container.innerHTML = savedKeys.map(item => `
+    <div class="saved-item">
+      <div class="saved-item-name">${item.name}</div>
+      <div class="saved-item-actions">
+        <mdui-button-icon onclick="useSavedKey('${item.key}', '${item.name}')"><i class="material-icons">send</i></mdui-button-icon>
+        <mdui-button-icon onclick="deleteKey('${item.name}')"><i class="material-icons">delete</i></mdui-button-icon>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 页面加载时渲染保存的密钥
+document.addEventListener('DOMContentLoaded', renderSavedKeys);
 </script>
   
   <script>
