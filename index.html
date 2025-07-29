@@ -67,6 +67,11 @@
       margin: 16px 0;
       border-bottom: 1px solid #e0e0e0
     }
+    .mdui-theme-dark {
+      .divider {
+          border-bottom: 1px solid #4F4F4F
+        }
+    }
     
     .no-keys-hint {
         text-align: center;
@@ -104,18 +109,26 @@
 
   </style>
   <!-- MDUI CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/mdui@2.0.3/mdui.css">
+  <link rel="stylesheet" href="https://unpkg.com/mdui@2/mdui.css">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="./font.css">
   <title>TOTP 生成器</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
   <!-- MDUI JavaScript -->
-  <script src="https://unpkg.com/mdui@2.0.3/mdui.global.js"></script>
+  <script src="https://unpkg.com/mdui@2/mdui.global.js"></script>
 </head>
 <body class="container">
   <mdui-top-app-bar>
     <mdui-top-app-bar-title>TOTP 生成器</mdui-top-app-bar-title>
     <div style="flex-grow: 1"></div>
+    
+    <!-- 添加主题切换按钮 -->
+    <mdui-tooltip content="切换主题">
+      <mdui-button-icon class="theme-toggle-btn" id="theme-toggle">
+        <i class="material-icons" id="theme-icon">auto_mode</i>
+      </mdui-button-icon>
+    </mdui-tooltip>
+    
     <mdui-tooltip content="查看 Github">
         <mdui-button-icon>
           <a href="https://github.com/SkyAerope/TOTP-Generator-Web" target="_blank">
@@ -158,6 +171,44 @@
 // 全局存储当前时间戳和剩余时间
 let currentTime = Math.floor(Date.now() / 1000);
 let currentRemaining = 0;
+
+// 主题切换功能
+document.addEventListener('DOMContentLoaded', function() {
+  // 检查本地存储的主题设置
+  const savedTheme = localStorage.getItem('theme');
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  
+  // 应用保存的主题
+  if (savedTheme == 'light') {
+    mdui.setTheme('light');
+    themeIcon.textContent = 'light_mode';
+  } else if (savedTheme == 'dark') {
+    mdui.setTheme('dark');
+    themeIcon.textContent = 'dark_mode';
+  } else {
+    mdui.setTheme('auto');
+  }
+  
+  // 添加主题切换事件
+  themeToggle.addEventListener('click', function() {
+    let current_theme = mdui.getTheme()
+    // auto > dark > light > auto
+    if ( current_theme == 'dark' ) {
+      mdui.setTheme('light')
+      themeIcon.textContent = 'light_mode';
+      localStorage.setItem('theme', 'light');
+    } else if ( current_theme == 'auto' ){
+      mdui.setTheme('dark')
+      themeIcon.textContent = 'dark_mode';
+      localStorage.setItem('theme', 'dark');
+    } else if ( current_theme == 'light' ){
+      mdui.setTheme('auto')
+      themeIcon.textContent = 'auto_mode';
+      localStorage.setItem('theme', 'auto');
+    }
+  });
+});
 
 function extractOTPSecret(str) {
    if (!str.startsWith('otpauth://totp/')) {
