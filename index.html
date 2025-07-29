@@ -183,6 +183,10 @@
   </div>
 
 <script>
+// 全局存储当前时间戳和剩余时间
+let currentTime = Math.floor(Date.now() / 1000);
+let currentRemaining = 0;
+
 function extractOTPSecret(str) {
    if (!str.startsWith('otpauth://totp/')) {
      return str;
@@ -274,30 +278,36 @@ function copyItemTOTP(totpElement, event) {
   mdui.snackbar({message: 'TOTP已复制', position: 'top'});
 }
 
-// 计算单个密钥的TOTP
-function calculateItemTOTP(key) {;
+// 计算单个密钥的TOTP（使用全局时间）
+function calculateItemTOTP(key) {
   key = extractOTPSecret(key.replace(/\s/g, ""));
   key = key.toUpperCase();
-  const decodedKey = base32Decode(key);
   
-  const timeStep = 30;
-  const currTime = Math.floor(Date.now() / 1000);
-  const counter = Math.floor(currTime / timeStep);
-  
-  const message = counter.toString(16).padStart(16, '0');
-  const hmacHash = hmacSHA1(decodedKey, hexToBytes(message));
-  const offset = hmacHash[19] & 0xf;
-  const otp =
-    ((hmacHash[offset] & 0x7f) << 24) |
-    (hmacHash[offset + 1] << 16) |
-    (hmacHash[offset + 2] << 8) |
-    hmacHash[offset + 3];
-  
-  return {
-    otp: (otp % 1000000).toString().padStart(6, '0'),
-    remaining: timeStep - (currTime % timeStep),
-    progress: ((timeStep - (currTime % timeStep)) / timeStep) * 100
-  };
+  try {
+    const decodedKey = base32Decode(key);
+    const timeStep = 30;
+    const counter = Math.floor(currentTime / timeStep);
+    
+    const message = counter.toString(16).padStart(16, '0');
+    const hmacHash = hmacSHA1(decodedKey, hexToBytes(message));
+    const offset = hmacHash[19] & 0xf;
+    const otp =
+      ((hmacHash[offset] & 0x7f) << 24) |
+      (hmacHash[offset + 1] << 16) |
+      (hmacHash[offset + 2] << 8) |
+      hmacHash[offset + 3];
+    
+    return {
+      otp: (otp % 1000000).toString().padStart(6, '0'),
+      progress: (currentRemaining / 30) * 100
+    };
+  } catch (error) {
+    console.error('计算TOTP出错:', error);
+    return {
+      otp: "Error",
+      progress: 0
+    };
+  }
 }
 
 // 渲染已保存的密钥列表
@@ -310,30 +320,17 @@ function renderSavedKeys() {
     return;
   }
   
-  container.innerHTML = savedKeys.map(item => {
-    let totpData
-    try {
-        totpData = calculateItemTOTP(item.key);
-    } catch (error) {
-        if (error instanceof TypeError) {
-            totpData = {
-                otp: "Error",
-                remaining: 0,
-                progress: 0
-            }
-        } else {
-            console.error(error)
-        }
-    }
+  container.innerHTML = savedKeys.map((item, index) => {
+    // 这里不立即计算TOTP，稍后统一更新
     return `
-    <div class="saved-item" onclick="useSavedKey('${item.key.replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">
+    <div class="saved-item" data-key="${encodeURIComponent(item.key)}" data-name="${encodeURIComponent(item.name)}" onclick="useSavedKey('${item.key.replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">
       <div class="saved-item-name">${item.name}</div>
       
       <div class="saved-item-totp-area">
-        <div class="saved-item-totp saved-item-totp-copyable" onclick="copyItemTOTP(this, event)">
-          ${totpData.otp}
+        <div class="saved-item-totp saved-item-totp-copyable" id="totp-${index}" onclick="copyItemTOTP(this, event)">
+          --- ---
         </div>
-          <mdui-linear-progress class="item-progress-bar" value="${totpData.progress}" max="100"></mdui-linear-progress>
+          <mdui-linear-progress id="progress-${index}" value="0" max="100"></mdui-linear-progress>
       </div>
       
       <div class="saved-item-actions">
@@ -342,6 +339,30 @@ function renderSavedKeys() {
     </div>
     `;
   }).join('');
+  
+  // 初始更新
+  updateAllTOTP();
+}
+
+// 更新所有TOTP显示
+function updateAllTOTP() {
+  const savedKeys = JSON.parse(localStorage.getItem('totpKeys') || '[]');
+  
+  savedKeys.forEach((item, index) => {
+    const totpElement = document.getElementById(`totp-${index}`);
+    const progressElement = document.getElementById(`progress-${index}`);
+    
+    if (totpElement && progressElement) {
+      try {
+        const totpData = calculateItemTOTP(item.key);
+        totpElement.textContent = totpData.otp;
+        progressElement.value = totpData.progress;
+      } catch (error) {
+        totpElement.textContent = "Error";
+        progressElement.style.width = '0%';
+      }
+    }
+  });
 }
 
 var timerId;
@@ -352,59 +373,55 @@ function generateTOTP() {
   var key = document.getElementById('key').value;
   key = extractOTPSecret(key.replace(/\s/g, ""));
 
-  // 将所有小写字母转换为大写字母并去掉空格
-  key = key.toUpperCase();
-  // 将Base32编码的密钥解码为二进制
-  try {
-      key = base32Decode(key);
-  } catch (error) {
-      if (error instanceof TypeError) {
-          otp = "Error"
-          document.getElementById('totp').textContent = otp;
-          document.getElementById('remaining-time').textContent = '剩余时间: ' + undefined + ' 秒';
-          var progress = document.getElementById('progress');
-          var progressWidth = 0;
-          progress.style.display = 'block';
-          progress.value = progressWidth;
-          return
-      } else {
-        console.error(error)
-        return
-      }
-  }
-
+  // 更新全局时间
+  currentTime = Math.floor(Date.now() / 1000);
+  
   // 定义哈希算法
   var digestAlgorithm = 'SHA-1';
 
   // 获取当前时间戳
   var timeStep = 30;  // 默认时间步长为30秒
-  var currTime = Math.floor(Date.now() / 1000);
 
-  // 计算到下一个30秒的剩余时间并减去1秒以确保刚好取到当前的30秒
-  var remainingTime = timeStep - (currTime % timeStep) - 1;
-  var remainingTimems = timeStep - (Date.now() / 1000 % timeStep) - 1;
-
+  // 计算到下一个30秒的剩余时间
+  currentRemaining = timeStep - (currentTime % timeStep);
+  
   // 计算基于时间的单次密码
-  var message = Math.floor(currTime / timeStep).toString(16);
-  message = message.padStart(16, '0');
-  var hmacHash = hmacSHA1(key, hexToBytes(message));
-  var offset = hmacHash[19] & 0xf;
-  var otp =
-    ((hmacHash[offset] & 0x7f) << 24) |
-    (hmacHash[offset + 1] << 16) |
-    (hmacHash[offset + 2] << 8) |
-    hmacHash[offset + 3];
-  otp = (otp % 1000000).toString().padStart(6, '0');
+  let otp = "------";
+  if (key) {
+    try {
+      // 将所有小写字母转换为大写字母并去掉空格
+      key = key.toUpperCase();
+      // 将Base32编码的密钥解码为二进制
+      key = base32Decode(key);
+
+      const counter = Math.floor(currentTime / timeStep);
+      const message = counter.toString(16).padStart(16, '0');
+      const hmacHash = hmacSHA1(key, hexToBytes(message));
+      const offset = hmacHash[19] & 0xf;
+      const otpValue =
+        ((hmacHash[offset] & 0x7f) << 24) |
+        (hmacHash[offset + 1] << 16) |
+        (hmacHash[offset + 2] << 8) |
+        hmacHash[offset + 3];
+      otp = (otpValue % 1000000).toString().padStart(6, '0');
+    } catch (error) {
+      console.error('生成TOTP出错:', error);
+      otp = "Error";
+    }
+  }
 
   // 更新TOTP密码和剩余时间的显示
   document.getElementById('totp').textContent = otp;
-  document.getElementById('remaining-time').textContent = '剩余时间: ' + remainingTime + ' 秒';
+  document.getElementById('remaining-time').textContent = '剩余时间: ' + currentRemaining + ' 秒';
 
   // 更新进度条
   var progress = document.getElementById('progress');
-  var progressWidth = (remainingTimems / timeStep) * 100;
+  var progressWidth = (currentRemaining / timeStep) * 100;
   progress.style.display = 'block';
   progress.value = progressWidth;
+
+  // 更新所有保存密钥的TOTP显示
+  updateAllTOTP();
 
   // 每0.1秒更新一次
   timerId = setTimeout(generateTOTP, 100);
@@ -484,24 +501,26 @@ function concatenateUint8Arrays(a, b) {
 function initTOTPKeyFeatures() {
     
     // 自动填入账户名
-    let lastresult = '';   document.getElementById('key').addEventListener('input', function(event) {
+    // let lastresult = '';
+    document.getElementById('key').addEventListener('input', function(event) {
       const key = event.target;
       const name = document.getElementById('keyName');
       const result = key.value.match(/otpauth:\/\/totp\/([^?]+)/);
       // if (result && (lastresult == result[1].substring(0, result[1].length - 1) || name.value == '')) {
       if (result) {
         name.value = result[1];
-        lastresult = result[1];
+        // lastresult = result[1];
       }
     });
     
   
   renderSavedKeys();
-  setInterval(renderSavedKeys, 1000);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     initTOTPKeyFeatures()
+    // 初始调用一次
+    generateTOTP();
 });
 
 </script>
